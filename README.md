@@ -21,7 +21,7 @@
 <p align = left> The program supports two types of sensors: tire sensors and power management units (PMUs). The print and analyze commands can be used with either type of sensor. </p>
 
 <h2> 4) Program Structure </h2>
-<p align = left> The program is divided into three files: </p>
+<p align = left> The program is divided into five files: </p>
 <ul>
     <li> main.c: contains the main function and the command line interface.
     <li> operations.c: contains the functions for analyzing sensor data.
