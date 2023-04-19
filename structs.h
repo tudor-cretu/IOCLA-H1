@@ -31,4 +31,3 @@ typedef struct __attribute__((__packed__)) {
 } tire_sensor;
 
 #endif // _STRUCTS_H_
-
