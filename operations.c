@@ -201,31 +201,31 @@ sensor *read_sensors(FILE *fp)
     fread(&s->nr_operations, sizeof(int), 1, fp);
     s->operations_idxs = malloc(s->nr_operations * sizeof(int));
     DIE(!s->operations_idxs, "operations_idxs allocation failed");
-    for(unsigned int i = 0; i < s->nr_operations; i++)
+    for(int i = 0; i < s->nr_operations; i++)
 	{
         fread(&s->operations_idxs[i], sizeof(int), 1, fp);
 	}
     return s;
 }
 
-void sort_sensors(sensor **sensors, unsigned int no_of_sensors)
+void sort_sensors(sensor **sensors, int no_of_sensors)
 {
     sensor **p = malloc(no_of_sensors * sizeof(sensor*));
     sensor **t = malloc(no_of_sensors * sizeof(sensor*));
 	DIE(!p, "PMU sensor allocation failed");
 	DIE(!t, "Tire sensor allocation failed");
-    unsigned int t_nr = 0, p_nr = 0;
-    for(unsigned int i = 0; i < no_of_sensors; i++)
+    int t_nr = 0, p_nr = 0;
+    for(int i = 0; i < no_of_sensors; i++)
     {
         if (!sensors[i]->sensor_type)
             t[t_nr++] = sensors[i];
         else
             p[p_nr++] = sensors[i];
     }
-    unsigned int idx = 0;
-    for(unsigned int i = 0; i < p_nr; i++)
+    int idx = 0;
+    for(int i = 0; i < p_nr; i++)
         sensors[idx++] = p[i];
-    for(unsigned int i = 0; i < t_nr; i++)
+    for(int i = 0; i < t_nr; i++)
         sensors[idx++] = t[i];
     free(p);
     free(t);
@@ -269,7 +269,7 @@ void analyze_sensors(sensor **sensors, int idx)
 	ops = malloc(8 * sizeof(void *));
 	DIE(!ops, "ops allocation failed");
 	get_operations(ops);
-	for (unsigned int i = 0; i < sensors[idx]->nr_operations; i++)
+	for (int i = 0; i < sensors[idx]->nr_operations; i++)
 	{
 		cmd_idx = sensors[idx]->operations_idxs[i];
 		((void (*)(void *))ops[cmd_idx])(sensors[idx]->sensor_data);
@@ -277,20 +277,20 @@ void analyze_sensors(sensor **sensors, int idx)
 	free(ops);
 }
 
-void free_sensors(sensor **sensors, int idx, unsigned int no_of_sensors)
+void general_free(sensor **sensors, int no_of_sensors)
 {
-	free(sensors[idx]->sensor_data);
-	free(sensors[idx]->operations_idxs);
-	free(sensors[idx]);	
-	for (unsigned int i = idx; i < no_of_sensors; i++)
-		sensors[i] = sensors[i + 1];
-	sensors[no_of_sensors - 1] = NULL;
-	no_of_sensors--;
+	for (int i = 0; i < no_of_sensors; i++)
+	{
+		free(sensors[i]->sensor_data);
+		free(sensors[i]->operations_idxs);
+		free(sensors[i]);	
+	}
+	free(sensors);
 }
 
-void clear_sensors(sensor **sensors, unsigned int no_of_sensors)
+void clear_sensors(sensor **sensors, int *no_of_sensors)
 {
-	for (unsigned int i = 0; i < no_of_sensors; i++)
+	for (int i = 0; i < *no_of_sensors; i++)
 	{
 		short sem = 0;
 		if (!sensors[i]->sensor_type)
@@ -302,11 +302,6 @@ void clear_sensors(sensor **sensors, unsigned int no_of_sensors)
 				sem = 1;
 			if (t->wear_level > 100 || t->wear_level < 0)
 				sem = 1;
-			if (sem)
-			{
-				free_sensors(sensors, i, no_of_sensors);
-				i--;
-			}
 		}
 		else 
 		{
@@ -321,11 +316,17 @@ void clear_sensors(sensor **sensors, unsigned int no_of_sensors)
 				sem = 1;
 			if (p->energy_storage > 100 || p->energy_storage < 0)
 				sem = 1;
-			if (sem)
-			{
-				free_sensors(sensors, i, no_of_sensors);
-				i--;
-			}
+		}
+		if (sem)
+		{
+			free(sensors[i]->sensor_data);
+			free(sensors[i]->operations_idxs);
+			free(sensors[i]);	
+			for (int j = i; j < *no_of_sensors - 1; j++)
+				sensors[j] = sensors[j + 1];
+			sensors[*no_of_sensors - 1] = NULL;
+			*no_of_sensors -= 1;
+			i--;
 		}
 	}
 }
