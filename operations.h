@@ -31,8 +31,8 @@ static void pmu_is_battery_healthy(void *data);
 void get_operations(void **operations);
 
 sensor *read_sensors(FILE *fp);
-void sort_sensors(sensor **sensors, int no_of_sensors);
+void sort_sensors(sensor **sensors, unsigned int no_of_sensors);
 void print_sensors(sensor *sensors);
-void analyze_sensors(sensor **sensors, int idx);
-void general_free(sensor **sensors, int no_of_sensors);
-void clear_sensors(sensor **sensors, int *no_of_sensors);
+void analyze_sensors(sensor **sensors, unsigned int idx);
+void clear_sensors(sensor **sensors, unsigned int *no_of_sensors);
+void general_free(sensor **sensors, unsigned int no_of_sensors);

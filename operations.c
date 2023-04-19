@@ -171,13 +171,15 @@ void get_operations(void **operations)
 
 // ------- DO NOT MODIFY ------- //
 
+// reading all the sensors's data from the file given as argument
 sensor *read_sensors(FILE *fp)
 {
     sensor *s = malloc(sizeof(sensor));
     DIE(!s, "sensor allocation failed");
 
     fread(&s->sensor_type, sizeof(enum sensor_type), 1, fp);
-    if (!s->sensor_type)
+    // checking the sensor's type
+	if (!s->sensor_type)
     {
         tire_sensor *t = malloc(sizeof(tire_sensor));
         DIE(!t, "tire_sensor allocation failed");
@@ -197,55 +199,57 @@ sensor *read_sensors(FILE *fp)
         fread(&p->energy_regen, sizeof(int), 1, fp);
         fread(&p->energy_storage, sizeof(int), 1, fp);
         s->sensor_data = p;
-    } 
+    }
+
     fread(&s->nr_operations, sizeof(int), 1, fp);
     s->operations_idxs = malloc(s->nr_operations * sizeof(int));
     DIE(!s->operations_idxs, "operations_idxs allocation failed");
-    for(int i = 0; i < s->nr_operations; i++)
-	{
+
+    for (int i = 0; i < s->nr_operations; i++)
         fread(&s->operations_idxs[i], sizeof(int), 1, fp);
-	}
     return s;
 }
 
-void sort_sensors(sensor **sensors, int no_of_sensors)
+// sorting sensors such that tire sensors are first and pmu sensors are last
+void sort_sensors(sensor **sensors, unsigned int no_of_sensors)
 {
     sensor **p = malloc(no_of_sensors * sizeof(sensor*));
     sensor **t = malloc(no_of_sensors * sizeof(sensor*));
 	DIE(!p, "PMU sensor allocation failed");
 	DIE(!t, "Tire sensor allocation failed");
+
     int t_nr = 0, p_nr = 0;
-    for(int i = 0; i < no_of_sensors; i++)
+    for (unsigned int i = 0; i < no_of_sensors; i++)
     {
+		// checking the sensor's type
         if (!sensors[i]->sensor_type)
             t[t_nr++] = sensors[i];
         else
             p[p_nr++] = sensors[i];
     }
+
+	// sorting the sensors by type
     int idx = 0;
-    for(int i = 0; i < p_nr; i++)
+    for (int i = 0; i < p_nr; i++)
         sensors[idx++] = p[i];
-    for(int i = 0; i < t_nr; i++)
+    for (int i = 0; i < t_nr; i++)
         sensors[idx++] = t[i];
+
     free(p);
     free(t);
 }
 
+// printing all the sensors's data
 void print_sensors(sensor *sensors)
 {
-    if(!sensors)
-    {
-        printf("No sensors to print.\n");
-        return;
-    }
-	if(!sensors->sensor_type)
+	if (!sensors->sensor_type)
 	{
 		tire_sensor *t = (tire_sensor *)sensors->sensor_data;
 		printf("Tire Sensor\n");
 		printf("Pressure: %.2f\n", t->pressure);
 		printf("Temperature: %.2f\n", t->temperature);
 		printf("Wear Level: %d%%\n", t->wear_level);
-		if(!t->performace_score)
+		if (!t->performace_score)
 			printf("Performance Score: Not Calculated\n");
 		else 
 			printf("Performance Score: %d\n", t->performace_score);
@@ -262,14 +266,17 @@ void print_sensors(sensor *sensors)
 	}
 }
 
-void analyze_sensors(sensor **sensors, int idx)
+// applying the operations given above to the sensors
+void analyze_sensors(sensor **sensors, unsigned int idx)
 {
 	void **ops;
-	int cmd_idx;
+	unsigned int cmd_idx;
 	ops = malloc(8 * sizeof(void *));
 	DIE(!ops, "ops allocation failed");
+
+	// setting the operations from the vector of functions
 	get_operations(ops);
-	for (int i = 0; i < sensors[idx]->nr_operations; i++)
+	for (unsigned int i = 0; i < sensors[idx]->nr_operations; i++)
 	{
 		cmd_idx = sensors[idx]->operations_idxs[i];
 		((void (*)(void *))ops[cmd_idx])(sensors[idx]->sensor_data);
@@ -277,24 +284,16 @@ void analyze_sensors(sensor **sensors, int idx)
 	free(ops);
 }
 
-void general_free(sensor **sensors, int no_of_sensors)
+// clearing the sensors which data is not within the given limits
+void clear_sensors(sensor **sensors, unsigned int *no_of_sensors)
 {
-	for (int i = 0; i < no_of_sensors; i++)
-	{
-		free(sensors[i]->sensor_data);
-		free(sensors[i]->operations_idxs);
-		free(sensors[i]);	
-	}
-	free(sensors);
-}
-
-void clear_sensors(sensor **sensors, int *no_of_sensors)
-{
-	for (int i = 0; i < *no_of_sensors; i++)
+	for (unsigned int i = 0; i < *no_of_sensors; i++)
 	{
 		short sem = 0;
+		// checking the sensor's type
 		if (!sensors[i]->sensor_type)
 		{
+			// checking if the Tire Sensors's data is within the limits
 			tire_sensor *t = (tire_sensor *)sensors[i]->sensor_data;
 			if (t->pressure > 28 || t->pressure < 19) 
 				sem = 1;
@@ -305,6 +304,7 @@ void clear_sensors(sensor **sensors, int *no_of_sensors)
 		}
 		else 
 		{
+			// checking if the PMU's data is within the limits
 			power_management_unit *p = (power_management_unit *)sensors[i]->sensor_data;
 			if (p->voltage > 20 || p->voltage < 10)
 				sem = 1;
@@ -317,16 +317,30 @@ void clear_sensors(sensor **sensors, int *no_of_sensors)
 			if (p->energy_storage > 100 || p->energy_storage < 0)
 				sem = 1;
 		}
+
 		if (sem)
 		{
+			// clearing the sensor and its data
 			free(sensors[i]->sensor_data);
 			free(sensors[i]->operations_idxs);
 			free(sensors[i]);	
-			for (int j = i; j < *no_of_sensors - 1; j++)
+			for (unsigned int j = i; j < *no_of_sensors - 1; j++)
 				sensors[j] = sensors[j + 1];
 			sensors[*no_of_sensors - 1] = NULL;
 			*no_of_sensors -= 1;
 			i--;
 		}
 	}
+}
+
+// freeing the memory allocated for the sensors
+void general_free(sensor **sensors, unsigned int no_of_sensors)
+{
+	for (int i = 0; i < no_of_sensors; i++)
+	{
+		free(sensors[i]->sensor_data);
+		free(sensors[i]->operations_idxs);
+		free(sensors[i]);	
+	}
+	free(sensors);
 }
